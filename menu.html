@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meal Planner App</title>
+    
+    <!-- Подключение Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Подключение React и ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Подключение Babel для компиляции JSX в браузере -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Шрифты -->
+    <style>
+        body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        
+        /* Стили для скроллбара */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-100 h-screen w-screen overflow-hidden">
+    <div id="root" class="h-full w-full"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        // --- КОМПОНЕНТЫ ИКОНОК ---
+
+        const IconBase = ({ children, size = 24, className = "", ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+                {children}
+            </svg>
+        );
+
+        const Plus = (props) => <IconBase {...props}><path d="M5 12h14"/><path d="M12 5v14"/></IconBase>;
+        const Trash2 = (props) => <IconBase {...props}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></IconBase>;
+        const ChevronDown = (props) => <IconBase {...props}><path d="m6 9 6 6 6-6"/></IconBase>;
+        const ChevronUp = (props) => <IconBase {...props}><path d="m18 15-6-6-6 6"/></IconBase>;
+        const Sun = (props) => <IconBase {...props}><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></IconBase>;
+        const Utensils = (props) => <IconBase {...props}><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></IconBase>;
+        const Moon = (props) => <IconBase {...props}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></IconBase>;
+        const GripVertical = (props) => <IconBase {...props}><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></IconBase>;
+        const XCircle = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></IconBase>;
+        const ChefHat = (props) => <IconBase {...props}><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" x2="18" y1="17" y2="17"/></IconBase>;
+        const ShoppingCart = (props) => <IconBase {...props}><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></IconBase>;
+        const Camera = (props) => <IconBase {...props}><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></IconBase>;
+        const Check = (props) => <IconBase {...props}><polyline points="20 6 9 17 4 12"/></IconBase>;
+        const ClipboardList = (props) => <IconBase {...props}><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></IconBase>;
+        const X = (props) => <IconBase {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>;
+        const Download = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
+
+        // --- КОНФИГУРАЦИЯ И КОНСТАНТЫ ---
+
+        const CATEGORIES = {
+            Breakfast: { 
+                id: 'Breakfast', 
+                label: 'Завтрак', 
+                colors: 'bg-amber-50 border-amber-400 text-amber-900', 
+                badge: 'bg-amber-100 text-amber-700',
+                icon: Sun 
+            },
+            Lunch: { 
+                id: 'Lunch', 
+                label: 'Обед', 
+                colors: 'bg-emerald-50 border-emerald-400 text-emerald-900', 
+                badge: 'bg-emerald-100 text-emerald-700',
+                icon: Utensils 
+            },
+            Dinner: { 
+                id: 'Dinner', 
+                label: 'Ужин', 
+                colors: 'bg-indigo-50 border-indigo-400 text-indigo-900', 
+                badge: 'bg-indigo-100 text-indigo-700',
+                icon: Moon 
+            }
+        };
+
+        const DAYS = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+        const SHORT_DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+        const MEALS = ['Breakfast', 'Lunch', 'Dinner'];
+
+        // --- МОДАЛЬНОЕ ОКНО СПИСКА ПОКУПОК ---
+
+        const ShoppingListModal = ({ isOpen, onClose, schedule }) => {
+            if (!isOpen) return null;
+
+            // Вспомогательная функция для группировки ингредиентов
+            const groupIngredients = (ingredientsList) => {
+                const counts = {};
+                ingredientsList.forEach(ing => {
+                    if (!ing) return;
+                    const name = ing.trim();
+                    if (name) {
+                        counts[name] = (counts[name] || 0) + 1;
+                    }
+                });
+                return Object.entries(counts)
+                    .sort((a, b) => a[0].localeCompare(b[0]))
+                    .map(([name, count]) => ({ name, count }));
+            };
+
+            // Подготовка данных
+            const weekIngredientsRaw = [];
+            const dayIngredientsRaw = Array(7).fill(null).map(() => []);
+
+            Object.entries(schedule).forEach(([key, dish]) => {
+                const [dayStr] = key.split('-');
+                const day = parseInt(dayStr);
+                
+                if (dish && dish.ingredients) {
+                    dayIngredientsRaw[day].push(...dish.ingredients);
+                    weekIngredientsRaw.push(...dish.ingredients);
+                }
+            });
+
+            const weekList = groupIngredients(weekIngredientsRaw);
+            const dayLists = dayIngredientsRaw.map(list => groupIngredients(list));
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        {/* Заголовок модального окна */}
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-white">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                                    <ShoppingCart size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-bold text-slate-800">Список покупок</h2>
+                                    <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">Расчет ингредиентов</p>
+                                </div>
+                            </div>
+                            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {/* Контент */}
+                        <div className="overflow-y-auto p-6 bg-slate-50/50 flex-1">
+                            
+                            {/* Секция: Итого за неделю */}
+                            <div className="bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm mb-8 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                                    <ShoppingCart size={120} />
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <span className="w-1.5 h-6 bg-indigo-500 rounded-full"></span>
+                                    Итого на неделю
+                                </h3>
+                                {weekList.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2">
+                                        {weekList.map((item, i) => (
+                                            <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-700 font-medium">
+                                                <span>{item.name}</span>
+                                                {item.count > 1 && (
+                                                    <span className="bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded text-[10px] font-bold">x{item.count}</span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-slate-400 italic">План питания пуст. Добавьте блюда в расписание.</p>
+                                )}
+                            </div>
+
+                            {/* Секция: По дням */}
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 px-1">
+                                    <span className="w-1.5 h-6 bg-emerald-500 rounded-full"></span>
+                                    Ингредиенты по дням
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {DAYS.map((day, idx) => (
+                                        <div key={day} className={`p-4 rounded-xl border ${dayLists[idx].length > 0 ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-100/50 border-transparent border-dashed border-2'}`}>
+                                            <h4 className={`text-sm font-bold uppercase tracking-wider mb-3 ${dayLists[idx].length > 0 ? 'text-slate-700' : 'text-slate-400'}`}>
+                                                {day}
+                                            </h4>
+                                            {dayLists[idx].length > 0 ? (
+                                                <ul className="space-y-1.5">
+                                                    {dayLists[idx].map((item, i) => (
+                                                        <li key={i} className="text-xs text-slate-600 flex items-start gap-2">
+                                                            <div className="w-1 h-1 rounded-full bg-slate-300 mt-1.5 shrink-0"></div>
+                                                            <span className="leading-tight">
+                                                                {item.name} 
+                                                                {item.count > 1 && <span className="text-slate-400 ml-1 font-semibold">x{item.count}</span>}
+                                                            </span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <span className="text-xs text-slate-400 block py-4 text-center">Нет покупок</span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                        </div>
+                        
+                        {/* Футер модалки */}
+                        <div className="bg-white p-4 border-t border-slate-100 flex justify-end">
+                             <button onClick={onClose} className="px-5 py-2.5 bg-slate-800 text-white font-bold rounded-xl text-sm hover:bg-slate-900 transition-colors shadow-lg shadow-slate-200">
+                                Закрыть
+                             </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+
+        // --- ГЛАВНЫЙ КОМПОНЕНТ ---
+
+        function MealPlannerApp() {
+            // --- Состояние ---
+            const [dishes, setDishes] = useState([
+                { 
+                id: 1, 
+                name: 'Овсянка с ягодами', 
+                category: 'Breakfast', 
+                ingredients: ['Овсянка', 'Молоко', 'Клубника', 'Мёд'],
+                image: 'https://images.unsplash.com/photo-1517093750588-b4b12366838b?w=400&q=80'
+                },
+                { 
+                id: 2, 
+                name: 'Борщ', 
+                category: 'Lunch', 
+                ingredients: ['Свекла', 'Говядина', 'Картофель', 'Капуста', 'Сметана'],
+                image: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400&q=80'
+                },
+                { 
+                id: 3, 
+                name: 'Курица карри', 
+                category: 'Dinner', 
+                ingredients: ['Куриное филе', 'Рис', 'Карри паста', 'Кокосовое молоко'],
+                image: null
+                }
+            ]);
+
+            const [schedule, setSchedule] = useState({}); // Ключ: "DayIndex-MealType"
+            const [expandedLibraryDishId, setExpandedLibraryDishId] = useState(null);
+            const [expandedScheduleKey, setExpandedScheduleKey] = useState(null);
+            
+            const [newDishName, setNewDishName] = useState('');
+            const [newDishCategory, setNewDishCategory] = useState('Breakfast');
+            const [newDishIngredients, setNewDishIngredients] = useState('');
+            const [newDishImage, setNewDishImage] = useState(null);
+            const [isAdding, setIsAdding] = useState(false);
+            const [isDragOver, setIsDragOver] = useState(false); // Для зоны дропа фото
+            
+            const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
+
+            // --- Обработчики ---
+
+            const handleImageUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) processFile(file);
+            };
+
+            const processFile = (file) => {
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setNewDishImage(reader.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const handleImageDrop = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragOver(false);
+
+                // 1. Попытка получить файл (с рабочего стола)
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    const file = e.dataTransfer.files[0];
+                    if (file.type.startsWith('image/')) {
+                        processFile(file);
+                        return;
+                    }
+                }
+
+                // 2. Попытка получить URL (перетаскивание из браузера)
+                const imageUrl = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+                if (imageUrl) {
+                    setNewDishImage(imageUrl);
+                }
+            };
+
+            const handleDragOverImage = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragOver(true);
+            };
+
+            const handleDragLeaveImage = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsDragOver(false);
+            };
+
+            const handleAddDish = (e) => {
+                e.preventDefault();
+                if (!newDishName.trim()) return;
+
+                const ingredientsList = newDishIngredients
+                .split(',')
+                .map(item => item.trim())
+                .filter(item => item.length > 0);
+
+                const newDish = {
+                    id: Date.now(),
+                    name: newDishName,
+                    category: newDishCategory,
+                    ingredients: ingredientsList,
+                    image: newDishImage
+                };
+
+                setDishes([...dishes, newDish]);
+                setNewDishName('');
+                setNewDishIngredients('');
+                setNewDishImage(null);
+                setIsAdding(false);
+            };
+
+            const handleDeleteDish = (id) => {
+                setDishes(dishes.filter(d => d.id !== id));
+            };
+
+            const handleDragStart = (e, dish) => {
+                e.dataTransfer.setData('dishId', dish.id);
+            };
+
+            const handleDrop = (e, dayIndex, mealType) => {
+                e.preventDefault();
+                const dishId = parseInt(e.dataTransfer.getData('dishId'));
+                const dish = dishes.find(d => d.id === dishId);
+
+                if (dish) {
+                    const key = `${dayIndex}-${mealType}`;
+                    setSchedule(prev => ({ ...prev, [key]: dish }));
+                }
+            };
+
+            const handleRemoveFromSchedule = (e, dayIndex, mealType) => {
+                e.stopPropagation();
+                const key = `${dayIndex}-${mealType}`;
+                setSchedule(prev => {
+                const newState = { ...prev };
+                delete newState[key];
+                return newState;
+                });
+                if (expandedScheduleKey === key) setExpandedScheduleKey(null);
+            };
+
+            return (
+                <div className="flex h-screen w-full bg-slate-100 font-sans text-slate-800 overflow-hidden">
+                
+                {/* --- МОДАЛЬНОЕ ОКНО --- */}
+                <ShoppingListModal 
+                    isOpen={isShoppingListOpen} 
+                    onClose={() => setIsShoppingListOpen(false)} 
+                    schedule={schedule}
+                />
+
+                {/* --- БИБЛИОТЕКА БЛЮД (СЛЕВА) --- */}
+                <div className="w-80 flex-shrink-0 bg-white border-r border-slate-300 flex flex-col h-full shadow-2xl z-20">
+                    <div className="p-6 border-b border-slate-100">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="bg-indigo-600 p-2 rounded-lg shadow-indigo-200 shadow-lg">
+                        <ChefHat className="w-6 h-6 text-white" />
+                        </div>
+                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Мои Блюда</h1>
+                    </div>
+                    </div>
+
+                    <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                    {!isAdding ? (
+                        <button 
+                        onClick={() => setIsAdding(true)}
+                        className="w-full py-3 px-4 bg-white border-2 border-dashed border-slate-300 rounded-xl text-slate-600 font-semibold hover:border-indigo-500 hover:text-indigo-600 transition-all flex items-center justify-center gap-2"
+                        >
+                        <Plus size={18} /> Добавить блюдо
+                        </button>
+                    ) : (
+                        <form onSubmit={handleAddDish} className="space-y-3 p-2 bg-white rounded-xl shadow-sm border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+                        <input
+                            type="text"
+                            placeholder="Название блюда"
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                            value={newDishName}
+                            onChange={(e) => setNewDishName(e.target.value)}
+                            autoFocus
+                        />
+                        <select
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                            value={newDishCategory}
+                            onChange={(e) => setNewDishCategory(e.target.value)}
+                        >
+                            {Object.values(CATEGORIES).map(cat => (
+                            <option key={cat.id} value={cat.id}>{cat.label}</option>
+                            ))}
+                        </select>
+                        <textarea
+                            placeholder="Продукты (через запятую)"
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none h-20"
+                            value={newDishIngredients}
+                            onChange={(e) => setNewDishIngredients(e.target.value)}
+                        />
+                        
+                        {/* Зона загрузки фото Drag & Drop */}
+                        <div className="relative">
+                            <input
+                                type="file"
+                                accept="image/png, image/jpeg, image/webp, image/gif"
+                                onChange={handleImageUpload}
+                                className="hidden"
+                                id="dish-image-upload"
+                            />
+                            <label
+                                htmlFor="dish-image-upload"
+                                onDragOver={handleDragOverImage}
+                                onDragLeave={handleDragLeaveImage}
+                                onDrop={handleImageDrop}
+                                className={`
+                                    flex flex-col items-center justify-center gap-2 w-full py-4 border-2 border-dashed rounded-lg text-sm cursor-pointer transition-all
+                                    ${isDragOver 
+                                        ? 'bg-indigo-50 border-indigo-400 text-indigo-600' 
+                                        : newDishImage 
+                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                                            : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                                    }
+                                `}
+                            >
+                                {newDishImage ? (
+                                    <div className="flex flex-col items-center gap-1">
+                                        <div className="relative w-full h-24 rounded overflow-hidden mb-1 border border-emerald-200">
+                                            <img src={newDishImage} className="w-full h-full object-cover" />
+                                        </div>
+                                        <div className="flex items-center gap-1 text-xs font-bold">
+                                            <Check size={14} /> 
+                                            <span>Фото выбрано</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {isDragOver ? <Download size={24} className="animate-bounce" /> : <Camera size={20} />}
+                                        <span className="text-xs text-center px-2">
+                                            {isDragOver ? "Отпустите фото здесь" : "Нажмите или перетащите фото (Google/Файл)"}
+                                        </span>
+                                    </>
+                                )}
+                            </label>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                            <button type="submit" className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors">ОК</button>
+                            <button type="button" onClick={() => { setIsAdding(false); setNewDishImage(null); }} className="px-3 py-2 bg-slate-100 text-slate-500 rounded-lg text-sm hover:bg-slate-200 transition-colors text-center">Отмена</button>
+                        </div>
+                        </form>
+                    )}
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                    {Object.values(CATEGORIES).map(cat => {
+                        const catDishes = dishes.filter(d => d.category === cat.id);
+                        if (catDishes.length === 0) return null;
+
+                        return (
+                        <div key={cat.id} className="space-y-3">
+                            <h3 className={`text-[11px] font-black uppercase tracking-[0.1em] px-2 flex items-center gap-2 ${cat.id === 'Breakfast' ? 'text-amber-500' : cat.id === 'Lunch' ? 'text-emerald-500' : 'text-indigo-500'}`}>
+                            <cat.icon size={14} /> {cat.label}
+                            </h3>
+                            {catDishes.map(dish => (
+                            <div 
+                                key={dish.id}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, dish)}
+                                className={`group relative rounded-xl border border-slate-200 bg-white hover:shadow-md transition-all cursor-grab active:cursor-grabbing overflow-hidden`}
+                            >
+                                <div className="p-3 flex items-center justify-between">
+                                <div className="flex items-center gap-2 overflow-hidden">
+                                    <GripVertical className="text-slate-300 w-4 h-4 flex-shrink-0" />
+                                    {/* Миниатюра в списке */}
+                                    {dish.image ? (
+                                        <img src={dish.image} alt={dish.name} className="w-8 h-8 rounded-md object-cover flex-shrink-0 border border-slate-100 bg-slate-50" />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-md bg-slate-50 border border-slate-100 flex items-center justify-center flex-shrink-0 text-slate-300">
+                                            <Utensils size={12} />
+                                        </div>
+                                    )}
+                                    <span className="font-semibold text-slate-700 text-sm truncate">{dish.name}</span>
+                                </div>
+                                <button 
+                                    onClick={() => setExpandedLibraryDishId(expandedLibraryDishId === dish.id ? null : dish.id)}
+                                    className={`p-1 rounded-full transition-colors ${expandedLibraryDishId === dish.id ? 'bg-slate-100 text-slate-600' : 'text-slate-400 hover:bg-slate-50'}`}
+                                >
+                                    {expandedLibraryDishId === dish.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                </button>
+                                </div>
+                                {expandedLibraryDishId === dish.id && (
+                                <div className="px-4 pb-4 animate-in slide-in-from-top-2">
+                                    <div className="pt-2 border-t border-slate-50">
+                                    <div className="flex items-center gap-1.5 mb-2 text-slate-400">
+                                        <ShoppingCart size={12} />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Состав:</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                        {dish.ingredients.map((ing, i) => (
+                                        <span key={i} className="px-2 py-0.5 bg-slate-50 border border-slate-100 rounded text-[11px] text-slate-600">{ing}</span>
+                                        ))}
+                                    </div>
+                                    <button onClick={() => handleDeleteDish(dish.id)} className="mt-3 w-full py-1 text-[10px] text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors flex items-center justify-center gap-1">
+                                        <Trash2 size={12} /> Удалить из списка
+                                    </button>
+                                    </div>
+                                </div>
+                                )}
+                            </div>
+                            ))}
+                        </div>
+                        );
+                    })}
+                    </div>
+                </div>
+
+                {/* --- ГЛАВНАЯ ОБЛАСТЬ: РАСПИСАНИЕ (СПРАВА) --- */}
+                <div className="flex-1 flex flex-col h-full overflow-hidden">
+                    <header className="px-8 py-4 bg-white border-b border-slate-300 flex justify-between items-center shadow-sm z-10">
+                    <div>
+                        <h2 className="text-2xl font-black text-slate-800 tracking-tight">Расписание недели</h2>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Meal Plan Weekly</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => setIsShoppingListOpen(true)}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-bold rounded-full hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200"
+                        >
+                            <ClipboardList size={18} />
+                            <span>Список покупок</span>
+                        </button>
+
+                        <button onClick={() => setSchedule({})} className="px-4 py-2.5 text-xs font-bold text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all border border-transparent hover:border-red-100 uppercase tracking-widest">
+                            Очистить
+                        </button>
+                    </div>
+                    </header>
+
+                    <div className="flex-1 overflow-auto p-4 sm:p-6 bg-slate-100">
+                    <div className="min-w-[1100px] h-full bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden flex flex-col">
+                        
+                        {/* Сетка заголовков дней */}
+                        <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/80">
+                        {SHORT_DAYS.map((day, idx) => (
+                            <div 
+                            key={day} 
+                            className={`
+                                py-4 text-center flex flex-col items-center justify-center gap-1
+                                ${idx !== 6 ? 'border-r border-slate-200' : ''}
+                                ${idx % 2 === 0 ? 'bg-white/50' : 'bg-slate-100/30'}
+                            `}
+                            >
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{DAYS[idx]}</span>
+                            <span className="text-lg font-black text-slate-800 leading-none">{day}</span>
+                            </div>
+                        ))}
+                        </div>
+
+                        {/* Тело расписания */}
+                        <div className="flex-1 flex flex-col overflow-y-auto">
+                        {MEALS.map((mealType, mealIdx) => {
+                            const config = CATEGORIES[mealType];
+                            return (
+                            <div key={mealType} className={`flex flex-col ${mealIdx !== 2 ? 'border-b border-slate-200' : ''}`}>
+                                <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+                                <div className={`p-1.5 rounded-lg ${config.badge} shadow-sm`}>
+                                    <config.icon size={16} />
+                                </div>
+                                <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">{config.label}</h3>
+                                </div>
+
+                                <div className="grid grid-cols-7 flex-1 min-h-[180px]">
+                                {DAYS.map((_, dayIdx) => {
+                                    const key = `${dayIdx}-${mealType}`;
+                                    const dish = schedule[key];
+                                    const isExpanded = expandedScheduleKey === key;
+                                    
+                                    return (
+                                    <div 
+                                        key={key}
+                                        onDragOver={(e) => e.preventDefault()}
+                                        onDrop={(e) => handleDrop(e, dayIdx, mealType)}
+                                        onClick={() => dish && setExpandedScheduleKey(isExpanded ? null : key)}
+                                        className={`
+                                        relative p-3 transition-all min-h-[150px]
+                                        ${dayIdx !== 6 ? 'border-r border-slate-100' : ''}
+                                        ${dayIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}
+                                        hover:bg-indigo-50/30 cursor-pointer
+                                        `}
+                                    >
+                                        {dish ? (
+                                        <div className={`
+                                            h-full flex flex-col p-3 rounded-2xl border-2 shadow-sm transition-all overflow-hidden relative
+                                            ${config.colors} border-transparent
+                                            ${isExpanded ? 'ring-4 ring-indigo-200 z-10 scale-[1.03] shadow-lg' : 'hover:scale-[1.02]'}
+                                        `}>
+                                            {dish.image && (
+                                                <div className="w-[calc(100%+1.5rem)] -mx-3 -mt-3 mb-2 h-12 relative">
+                                                    <img src={dish.image} alt="" className="w-full h-full object-cover" />
+                                                    <div className={`absolute inset-0 bg-gradient-to-t ${isExpanded ? 'from-white/10' : 'from-white/0'} to-transparent`}></div>
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-between items-start mb-2 relative z-10">
+                                            <span className="text-sm font-bold leading-tight">{dish.name}</span>
+                                            <button 
+                                                onClick={(e) => handleRemoveFromSchedule(e, dayIdx, mealType)}
+                                                className="p-1 text-slate-400 hover:text-red-500 transition-colors bg-white/60 hover:bg-white rounded-full backdrop-blur-sm"
+                                            >
+                                                <XCircle size={14} />
+                                            </button>
+                                            </div>
+                                            
+                                            <div className="mt-auto flex items-center justify-between text-[10px] font-bold opacity-60">
+                                            <span className="flex items-center gap-1"><ShoppingCart size={10}/> {dish.ingredients.length}</span>
+                                            {isExpanded ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
+                                            </div>
+
+                                            {isExpanded && (
+                                            <div className="mt-3 pt-3 border-t border-black/5 animate-in fade-in slide-in-from-top-1 overflow-hidden">
+                                                <ul className="space-y-1 text-[11px] font-medium">
+                                                {dish.ingredients.map((ing, i) => (
+                                                    <li key={i} className="flex items-start gap-1.5 break-words">
+                                                    <div className="w-1 h-1 rounded-full bg-current mt-1.5 opacity-40 shrink-0"></div>
+                                                    {ing}
+                                                    </li>
+                                                ))}
+                                                </ul>
+                                            </div>
+                                            )}
+                                        </div>
+                                        ) : (
+                                        <div className="flex flex-col items-center justify-center h-full text-slate-200 group">
+                                            <Plus size={24} className="group-hover:text-indigo-300 transition-colors" />
+                                            <span className="text-[10px] font-bold uppercase tracking-tighter mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Добавить</span>
+                                        </div>
+                                        )}
+                                    </div>
+                                    );
+                                })}
+                                </div>
+                            </div>
+                            );
+                        })}
+                        </div>
+                    </div>
+                    </div>
+                </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<MealPlannerApp />);
+    </script>
+</body>
+</html>
